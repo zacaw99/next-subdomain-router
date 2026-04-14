@@ -86,6 +86,6 @@ export function createSubdomainRouter(options: CreateSubdomainRouterOptions) {
 			return NextResponse.rewrite(new URL(internalRoute, request.url));
 		}
 
-		return NextResponse.next();
+		return new NextResponse("Not Found", { status: 404 });
 	};
 }
