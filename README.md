@@ -19,7 +19,7 @@ Subdomain-based routing for Next.js 16 using `proxy.ts`.
 - 🧪 Works in development (`*.localhost`)
 - 🔒 Optional blocking of direct internal routes
 - 🧩 Fully configurable behaviour
-- 🚫 No middleware hacks — built for `proxy.ts`
+- 🚫 No middleware hacks - built for `proxy.ts`
 
 ---
 
@@ -95,7 +95,7 @@ Incoming requests are intercepted in `proxy.ts`, and the hostname is analysed:
 | `alpha.example.com` | `/sites/alpha` _(dynamic)_         |
 | `example.com`       | `/` _(or rewritten if configured)_ |
 
-The user never sees the internal route — rewrites happen transparently.
+The user never sees the internal route - rewrites happen transparently.
 
 ---
 
@@ -379,7 +379,7 @@ createSubdomainRouter({
 
 ## 🧠 Notes
 
-- `proxy.ts` runs before routing — ensure assets are not rewritten
+- `proxy.ts` runs before routing - ensure assets are not rewritten
 - Wildcard domains are essential for **dynamic subdomain routing**
 - Using Vercel nameservers avoids most DNS-related issues
 
@@ -408,7 +408,7 @@ Once configured, `next-subdomain-router` will work seamlessly with Vercel deploy
 app/_sites/app/page.tsx ❌
 ```
 
-This will NOT work — Next.js ignores underscore-prefixed folders.
+This will NOT work - Next.js ignores underscore-prefixed folders.
 
 Use:
 
