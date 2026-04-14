@@ -57,6 +57,17 @@ export function createSubdomainRouter(options: CreateSubdomainRouterOptions) {
 		const host = hostHeader.toLowerCase();
 		const { pathname, search } = request.nextUrl;
 
+		const isAssetRequest =
+			pathname.startsWith("/_next/") ||
+			pathname === "/favicon.ico" ||
+			pathname === "/robots.txt" ||
+			pathname === "/sitemap.xml" ||
+			/\.[a-zA-Z0-9]+$/.test(pathname);
+
+		if (isAssetRequest) {
+			return NextResponse.next();
+		}
+
 		if (
 			denyDirectAccess &&
 			isDirectInternalRoute(pathname, internalHiddenRoutePrefix)
