@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { CreateSubdomainRouterOptions } from "./types";
+import type { CreateSubdomainRouterOptions, NotFoundStrategy } from "./types";
 import {
 	extractSubdomain,
 	isDirectInternalRoute,
 	normalisePrefix,
 	joinInternalRoute,
-	stripPort,
 } from "./utils";
 
-export type { CreateSubdomainRouterOptions } from "./types";
+export type { CreateSubdomainRouterOptions, NotFoundStrategy } from "./types";
+
+function handleNotFound(
+	request: NextRequest,
+	strategy: NotFoundStrategy,
+	rewritePath: string,
+) {
+	if (strategy === "rewrite") {
+		return NextResponse.rewrite(new URL(rewritePath, request.url));
+	}
+
+	return new NextResponse("Not Found", { status: 404 });
+}
 
 export function createSubdomainRouter(options: CreateSubdomainRouterOptions) {
 	const {
@@ -20,10 +31,12 @@ export function createSubdomainRouter(options: CreateSubdomainRouterOptions) {
 		developmentHostname = "localhost:3000",
 		rewriteRootPath = false,
 		rootSubdomain,
+		notFoundStrategy = "response",
+		notFoundRewritePath = "/404",
 	} = options;
 
 	const internalHiddenRoutePrefix = normalisePrefix(
-		options.internalHiddenRoutePrefix || "_sites",
+		options.internalHiddenRoutePrefix || "sites",
 	);
 
 	const reserved = new Set(reservedSubdomains.map((sub) => sub.toLowerCase()));
@@ -36,32 +49,35 @@ export function createSubdomainRouter(options: CreateSubdomainRouterOptions) {
 
 	return function proxy(request: NextRequest) {
 		const hostHeader = request.headers.get("host");
+
 		if (!hostHeader) {
 			return NextResponse.next();
 		}
 
-		const host = stripPort(hostHeader).toLowerCase();
+		const host = hostHeader.toLowerCase();
 		const { pathname, search } = request.nextUrl;
 
 		if (
 			denyDirectAccess &&
 			isDirectInternalRoute(pathname, internalHiddenRoutePrefix)
 		) {
-			return NextResponse.rewrite(new URL("/404", request.url));
+			return handleNotFound(request, notFoundStrategy, notFoundRewritePath);
 		}
 
 		const subdomain = extractSubdomain(host, rootDomain, developmentHostname);
 
 		if (subdomain === null) {
-			if (rewriteRootPath && rootDomain) {
+			if (rewriteRootPath && rootSubdomain) {
 				const internalRoute = joinInternalRoute(
 					internalHiddenRoutePrefix,
-					rootSubdomain || "",
+					rootSubdomain,
 					pathname,
 					search,
 				);
+
 				return NextResponse.rewrite(new URL(internalRoute, request.url));
 			}
+
 			return NextResponse.next();
 		}
 
@@ -73,6 +89,7 @@ export function createSubdomainRouter(options: CreateSubdomainRouterOptions) {
 				pathname,
 				search,
 			);
+
 			return NextResponse.rewrite(new URL(internalRoute, request.url));
 		}
 
@@ -83,9 +100,10 @@ export function createSubdomainRouter(options: CreateSubdomainRouterOptions) {
 				pathname,
 				search,
 			);
+
 			return NextResponse.rewrite(new URL(internalRoute, request.url));
 		}
 
-		return new NextResponse("Not Found", { status: 404 });
+		return handleNotFound(request, notFoundStrategy, notFoundRewritePath);
 	};
 }

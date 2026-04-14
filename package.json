@@ -1,6 +1,6 @@
 {
 	"name": "next-subdomain-router",
-	"version": "0.1.1",
+	"version": "1.0.0",
 	"description": "Subdomain routing for Next.js 16 proxy.ts",
 	"license": "MIT",
 	"type": "module",

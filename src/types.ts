@@ -5,6 +5,7 @@
  */
 
 export type StaticSubdomainMap = Record<string, string>;
+export type NotFoundStrategy = "response" | "rewrite";
 
 export interface CreateSubdomainRouterOptions {
 	/*
@@ -69,4 +70,21 @@ export interface CreateSubdomainRouterOptions {
 	 * If rewriteRootPath is true, the subdomain to use for the root path.
 	 */
 	rootSubdomain?: string;
+
+	/*
+	 * Not Found Strategy
+	 * Controls how rejected requests are handled.
+	 * - "response": return a raw 404 response
+	 * - "rewrite": rewrite to a provided route
+	 * Default: "response"
+	 */
+	notFoundStrategy?: NotFoundStrategy;
+
+	/*
+	 * Not Found Rewrite Path
+	 * Used only when notFoundStrategy is "rewrite".
+	 * Example: "/404" or "/not-found"
+	 * Default: "/404"
+	 */
+	notFoundRewritePath?: string;
 }
