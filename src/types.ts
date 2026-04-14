@@ -1,0 +1,72 @@
+/*
+ * Next Subdomain Router Type Declarations
+ *
+ * Created by zacaw99 Copyright (c) 2026
+ */
+
+export type StaticSubdomainMap = Record<string, string>;
+
+export interface CreateSubdomainRouterOptions {
+	/*
+	 * Root Domain
+	 * The root domain for which the subdomain router will be used.
+	 */
+	rootDomain: string;
+
+	/*
+	 * Internal Hidden Route Prefix
+	 * The prefix used for internal hidden routes. This is used to avoid conflicts with user-defined routes.
+	 * Default: "_sites"
+	 */
+	internalHiddenRoutePrefix?: string;
+
+	/*
+	 * Deny Direct Access to Subdomain Routes
+	 * If true, direct access to subdomain routes will be denied, and users will be shown a 404 page.
+	 * Default: false
+	 */
+	denyDirectAccess?: boolean;
+
+	/*
+        Subdomains
+        A mapping of static subdomains to their corresponding internal routes. This allows you to define specific subdomains that route to specific pages.
+        Default: {}
+        Example: { "blog": "blog", "shop": "shop" }
+    */
+	subdomains?: StaticSubdomainMap;
+
+	/*
+	 * Reserved Subdomains
+	 * An array of subdomains that are reserved and cannot be used by dynamic subdomain routing.
+	 * Default: []
+	 * Example: ["www", "api", "admin"]
+	 */
+	reservedSubdomains?: string[];
+
+	/*
+	 * Enable Dynamic Subdomain Routing
+	 * If true, dynamic subdomain routing will be enabled, allowing any subdomain to be routed to a corresponding page.
+	 * Default: true
+	 */
+	enableDynamicSubdomainRouting?: boolean;
+
+	/*
+	 * Development Hostname
+	 * The hostname to use for development. This is used to ensure that the subdomain routing works correctly in development environments.
+	 * Default: "localhost"
+	 */
+	developmentHostname?: string;
+
+	/*
+	 * Rewrite Root Path
+	 * If true, the root path ("/") will be rewritten to the internal hidden route prefix. This is useful for handling requests to the root domain.
+	 * Default: false
+	 */
+	rewriteRootPath?: boolean;
+
+	/*
+	 * Root Subdomain
+	 * If rewriteRootPath is true, the subdomain to use for the root path.
+	 */
+	rootSubdomain?: string;
+}
