@@ -259,6 +259,147 @@ createSubdomainRouter({
 
 ---
 
+## ▲ Vercel Setup (Wildcard Subdomains)
+
+To use `next-subdomain-router` on Vercel with real subdomains (e.g. `app.domain.com`, `test.domain.com`), you must configure **wildcard domains correctly**.
+
+This is required for subdomain routing to work in production.
+
+---
+
+## ⚠️ Important
+
+Wildcard subdomains **will NOT work** on:
+
+```txt
+*.vercel.app ❌
+```
+
+You must use a **custom domain**.
+
+---
+
+## 1. Add Domains in Vercel
+
+Go to your project → **Settings → Domains**
+
+Add:
+
+```txt
+yourdomain.com
+*.yourdomain.com
+```
+
+After adding, Vercel will show a configuration status.
+
+---
+
+## 2. Configure DNS (Recommended: Nameservers)
+
+From experience, the most reliable method is to use **Vercel DNS via nameservers**.
+
+### Update your domain nameservers to:
+
+```txt
+ns1.vercel-dns.com
+ns2.vercel-dns.com
+```
+
+This allows Vercel to:
+
+- automatically manage wildcard routing
+- issue SSL certificates for `*.yourdomain.com`
+- avoid common DNS misconfiguration issues
+
+---
+
+## 3. Wait for SSL Provisioning
+
+After configuration, Vercel will show:
+
+```txt
+Generating SSL Certificate...
+```
+
+Wait until this changes to:
+
+```txt
+Valid Configuration ✅
+```
+
+---
+
+## 4. Verify Setup
+
+Once ready, test:
+
+```txt
+app.yourdomain.com
+test.yourdomain.com
+alpha.yourdomain.com
+```
+
+All subdomains should resolve to your Vercel project.
+
+---
+
+## 5. Update Your Router Config
+
+Make sure your router uses your real domain:
+
+```ts
+createSubdomainRouter({
+	rootDomain: "yourdomain.com",
+	internalHiddenRoutePrefix: "sites",
+	enableDynamicSubdomainRouting: true,
+});
+```
+
+---
+
+## 6. Common Issues
+
+### ❌ Subdomains return Vercel 404
+
+- Domain not added in Vercel
+- SSL not finished generating
+
+### ❌ Subdomains do not resolve
+
+- Nameservers not updated
+- DNS propagation not complete
+
+### ❌ Assets (CSS/JS/images) fail to load
+
+- Ensure your proxy excludes:
+  - `/_next/`
+  - files with extensions (e.g. `.js`, `.css`, `.svg`)
+
+---
+
+## 🧠 Notes
+
+- `proxy.ts` runs before routing — ensure assets are not rewritten
+- Wildcard domains are essential for **dynamic subdomain routing**
+- Using Vercel nameservers avoids most DNS-related issues
+
+---
+
+## ✅ Summary
+
+| Step                                 | Required |
+| ------------------------------------ | -------- |
+| Add `*.domain` in Vercel             | ✅       |
+| Configure DNS / nameservers          | ✅       |
+| Wait for SSL provisioning            | ✅       |
+| Use custom domain (not `vercel.app`) | ✅       |
+
+---
+
+Once configured, `next-subdomain-router` will work seamlessly with Vercel deployments.
+
+---
+
 ## ⚠️ Important Notes
 
 ### ❌ Do NOT use `_sites`
