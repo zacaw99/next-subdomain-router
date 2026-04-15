@@ -52,6 +52,14 @@ export interface CreateSubdomainRouterOptions {
 	enableDynamicSubdomainRouting?: boolean;
 
 	/*
+	 * Allowed Dynamic Subdomains
+	 * An array of allowed dynamic subdomains. If specified, only these subdomains will be allowed for dynamic routing.
+	 * Default: []
+	 * Example: ["user", "account", "profile"]
+	 */
+	allowedDynamicSubdomains?: string[];
+
+	/*
 	 * Development Hostname
 	 * The hostname to use for development. This is used to ensure that the subdomain routing works correctly in development environments.
 	 * Default: "localhost"

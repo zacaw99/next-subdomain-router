@@ -28,6 +28,7 @@ export function createSubdomainRouter(options: CreateSubdomainRouterOptions) {
 		subdomains = {},
 		reservedSubdomains = ["www"],
 		enableDynamicSubdomainRouting = false,
+		allowedDynamicSubdomains,
 		developmentHostname = "localhost:3000",
 		rewriteRootPath = false,
 		rootSubdomain,
@@ -104,7 +105,13 @@ export function createSubdomainRouter(options: CreateSubdomainRouterOptions) {
 			return NextResponse.rewrite(new URL(internalRoute, request.url));
 		}
 
-		if (!reserved.has(subdomain) && enableDynamicSubdomainRouting) {
+		const isAllowedDynamicSubdomain =
+			enableDynamicSubdomainRouting &&
+			!reserved.has(subdomain) &&
+			(allowedDynamicSubdomains === undefined ||
+				allowedDynamicSubdomains.includes(subdomain));
+
+		if (isAllowedDynamicSubdomain) {
 			const internalRoute = joinInternalRoute(
 				internalHiddenRoutePrefix,
 				subdomain,

@@ -10,7 +10,10 @@ Subdomain-based routing for Next.js 16 using `proxy.ts`.
 - Internal route protection
 - Configurable 404 handling (response or rewrite)
 
----
+## 📝 Changelog
+
+### v1.0.3
+- Added `allowedDynamicSubdomains` option to whitelist specific subdomains for dynamic routing
 
 ## ✨ Features
 
@@ -21,8 +24,6 @@ Subdomain-based routing for Next.js 16 using `proxy.ts`.
 - 🧩 Fully configurable behaviour
 - 🚫 No middleware hacks - built for `proxy.ts`
 
----
-
 ## 📦 Installation
 
 ```bash
@@ -30,8 +31,6 @@ npm install next-subdomain-router
 ```
 
 ---
-
-## 🚀 Usage
 
 ### 1. Create your route structure
 
@@ -51,8 +50,6 @@ app/
 ```
 
 ---
-
-### 2. Create `proxy.ts`
 
 At the root of your project:
 
@@ -82,9 +79,35 @@ export const config = {
 };
 ```
 
----
+### 3. Configure allowed dynamic subdomains (optional)
 
-## 🧠 How it works
+When using `enableDynamicSubdomainRouting: true` with a `[subdomain]` dynamic route folder, you can restrict which subdomain values are accepted using `allowedDynamicSubdomains`. This acts as a whitelist for the `params.subdomain` value:
+
+```ts
+export const proxy = createSubdomainRouter({
+	// ... other config
+	enableDynamicSubdomainRouting: true,
+	allowedDynamicSubdomains: ["user", "account", "profile"], // Only these values are allowed for [subdomain]
+});
+```
+
+Your route structure:
+```txt
+app/
+  sites/
+    [subdomain]/
+      page.tsx  # Receives params.subdomain
+```
+
+| Request             | Result                                 |
+| ------------------- | -------------------------------------- |
+| `user.example.com`  | ✅ Routes to `/sites/[subdomain]` with `params.subdomain = "user"`      |
+| `profile.example.com` | ✅ Routes to `/sites/[subdomain]` with `params.subdomain = "profile"`   |
+| `admin.example.com` | ❌ 404 (not in allowed list)           |
+
+When `allowedDynamicSubdomains` is **not specified**, all subdomains (except reserved ones) are allowed dynamically. This option acts as an allowlist to control which subdomain slugs can be used.
+
+---
 
 Incoming requests are intercepted in `proxy.ts`, and the hostname is analysed:
 
@@ -98,8 +121,6 @@ Incoming requests are intercepted in `proxy.ts`, and the hostname is analysed:
 The user never sees the internal route - rewrites happen transparently.
 
 ---
-
-## 🧪 Development
 
 Works out of the box with `localhost`.
 
@@ -121,17 +142,13 @@ Your production domain.
 rootDomain: "example.com";
 ```
 
----
-
 ### `internalHiddenRoutePrefix`
 
-Internal route prefix used for rewrites.
+Internal route prefix used for rewrites. Default: `"sites"`
 
 ```ts
 internalHiddenRoutePrefix: "sites";
 ```
-
----
 
 ### `subdomains`
 
@@ -144,11 +161,9 @@ subdomains: {
 }
 ```
 
----
-
 ### `enableDynamicSubdomainRouting`
 
-Enable fallback dynamic routing.
+Enable fallback dynamic routing. Default: `false`
 
 ```ts
 enableDynamicSubdomainRouting: true;
@@ -160,21 +175,25 @@ Requires:
 app/sites/[subdomain]/page.tsx
 ```
 
----
+### `allowedDynamicSubdomains`
+
+Whitelist specific subdomains for dynamic routing. When specified, only these subdomains will be allowed. Default: `undefined` (all subdomains allowed)
+
+```ts
+allowedDynamicSubdomains: ["user", "account", "profile"];
+```
 
 ### `reservedSubdomains`
 
-Subdomains that should never be dynamically routed.
+Subdomains that should never be dynamically routed. Default: `["www"]`
 
 ```ts
 reservedSubdomains: ["www", "api"];
 ```
 
----
-
 ### `denyDirectAccess`
 
-Blocks direct access to internal routes.
+Blocks direct access to internal routes. Default: `false`
 
 ```ts
 denyDirectAccess: true;
@@ -185,21 +204,17 @@ denyDirectAccess: true;
 | `/sites/app`      | ❌ 404   |
 | `app.example.com` | ✅ works |
 
----
-
 ### `developmentHostname`
 
-Used for local subdomain detection.
+Used for local subdomain detection. Default: `"localhost:3000"`
 
 ```ts
 developmentHostname: "localhost:3000";
 ```
 
----
+### `rewriteRootPath` & `rootSubdomain`
 
-### `rewriteRootPath`
-
-Rewrite the root domain to a subdomain route.
+Rewrite the root domain to a subdomain route. Default: `false`
 
 ```ts
 rewriteRootPath: true,
@@ -210,11 +225,9 @@ rootSubdomain: "app"
 | ------------- | ------------ |
 | `example.com` | `/sites/app` |
 
----
+### `notFoundStrategy` & `notFoundRewritePath`
 
-### `notFoundStrategy`
-
-Controls behaviour for unknown subdomains.
+Controls behaviour for unknown subdomains. Default strategy: `"response"`
 
 #### `"response"` (default)
 
@@ -224,8 +237,6 @@ notFoundStrategy: "response";
 
 Returns a raw 404 response.
 
----
-
 #### `"rewrite"`
 
 ```ts
@@ -234,8 +245,6 @@ notFoundRewritePath: "/404"
 ```
 
 Rewrites to a route inside your app.
-
----
 
 ## 🧪 Example
 
