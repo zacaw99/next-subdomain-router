@@ -50,31 +50,27 @@ export function createSubdomainRouter(options: CreateSubdomainRouterOptions) {
 		]),
 	);
 
+	async function finalize(request: NextRequest, response: NextResponse) {
+		if (afterProxy) {
+			return await afterProxy(request, response);
+		}
+
+		return response;
+	}
+
 	return async function proxy(request: NextRequest) {
 		const hostHeader = request.headers.get("host");
-
-		if (!hostHeader) {
-			let response = NextResponse.next();
-
-			if (afterProxy) {
-				response = await afterProxy(request, response);
-			}
-
-			return response;
-		}
 
 		if (beforeProxy) {
 			const beforeResult = await beforeProxy(request);
 
 			if (beforeResult instanceof NextResponse) {
-				let response = beforeResult;
-
-				if (afterProxy) {
-					response = await afterProxy(request, response);
-				}
-
-				return response;
+				return await finalize(request, beforeResult);
 			}
+		}
+
+		if (!hostHeader) {
+			return await finalize(request, NextResponse.next());
 		}
 
 		const host = hostHeader.toLowerCase();
@@ -88,43 +84,58 @@ export function createSubdomainRouter(options: CreateSubdomainRouterOptions) {
 			/\.[a-zA-Z0-9]+$/.test(pathname);
 
 		if (isAssetRequest) {
-			return NextResponse.next();
+			return await finalize(request, NextResponse.next());
 		}
 
 		if (
 			denyDirectAccess &&
 			isDirectInternalRoute(pathname, internalHiddenRoutePrefix)
 		) {
-			return handleNotFound(request, notFoundStrategy, notFoundRewritePath);
+			return await finalize(
+				request,
+				handleNotFound(request, notFoundStrategy, notFoundRewritePath),
+			);
 		}
 
 		const subdomain = extractSubdomain(host, rootDomain, developmentHostname);
 
 		if (subdomain === null) {
 			if (rewriteRootPath && rootSubdomain) {
-				const internalRoute = joinInternalRoute(
-					internalHiddenRoutePrefix,
-					rootSubdomain,
-					pathname,
-					search,
+				return await finalize(
+					request,
+					NextResponse.rewrite(
+						new URL(
+							joinInternalRoute(
+								internalHiddenRoutePrefix,
+								rootSubdomain,
+								pathname,
+								search,
+							),
+							request.url,
+						),
+					),
 				);
-
-				return NextResponse.rewrite(new URL(internalRoute, request.url));
 			}
 
-			return NextResponse.next();
+			return await finalize(request, NextResponse.next());
 		}
 
 		const staticRoute = staticMap.get(subdomain);
 		if (staticRoute) {
-			const internalRoute = joinInternalRoute(
-				internalHiddenRoutePrefix,
-				staticRoute,
-				pathname,
-				search,
+			return await finalize(
+				request,
+				NextResponse.rewrite(
+					new URL(
+						joinInternalRoute(
+							internalHiddenRoutePrefix,
+							staticRoute,
+							pathname,
+							search,
+						),
+						request.url,
+					),
+				),
 			);
-
-			return NextResponse.rewrite(new URL(internalRoute, request.url));
 		}
 
 		const isAllowedDynamicSubdomain =
@@ -134,26 +145,25 @@ export function createSubdomainRouter(options: CreateSubdomainRouterOptions) {
 				allowedDynamicSubdomains.includes(subdomain));
 
 		if (isAllowedDynamicSubdomain) {
-			const internalRoute = joinInternalRoute(
-				internalHiddenRoutePrefix,
-				subdomain,
-				pathname,
-				search,
+			return await finalize(
+				request,
+				NextResponse.rewrite(
+					new URL(
+						joinInternalRoute(
+							internalHiddenRoutePrefix,
+							subdomain,
+							pathname,
+							search,
+						),
+						request.url,
+					),
+				),
 			);
-
-			return NextResponse.rewrite(new URL(internalRoute, request.url));
 		}
 
-		let response = handleNotFound(
+		return await finalize(
 			request,
-			notFoundStrategy,
-			notFoundRewritePath,
+			handleNotFound(request, notFoundStrategy, notFoundRewritePath),
 		);
-
-		if (afterProxy) {
-			response = await afterProxy(request, response);
-		}
-
-		return response;
 	};
 }

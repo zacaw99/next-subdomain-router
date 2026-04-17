@@ -12,6 +12,12 @@ Subdomain-based routing for Next.js 16 using `proxy.ts`.
 
 ## 📝 Changelog
 
+### V1.1.1 (Fixes)
+
+- `afterProxy` now runs consistently for all final responses, including rewrites
+- Supabase integration guidance updated for public homepage handling
+- README corrected to show `afterProxy(request, response)` argument order
+
 ### v1.1.0
 
 - Added `beforeProxy` and `afterProxy` callbacks for custom middleware logic before and after subdomain routing
@@ -269,7 +275,7 @@ If this function returns a `NextResponse`, that response is sent immediately and
 Async callback executed after subdomain routing, before the response is sent. Useful for modifying response headers, setting cookies, or logging.
 
 ```ts
-afterProxy: async (response: NextResponse, request: NextRequest) => {
+afterProxy: async (request: NextRequest, response: NextResponse) => {
 	// Custom logic after routing
 	response.headers.set("x-subdomain-routed", "true");
 	return response;
@@ -303,69 +309,39 @@ createSubdomainRouter({
 Integrate `next-subdomain-router` with Supabase for authentication across subdomains:
 
 ```ts
-import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createSubdomainRouter } from "next-subdomain-router";
+import { updateSession } from "@/lib/supabase/proxy";
 
 export const proxy = createSubdomainRouter({
 	rootDomain: "example.com",
 	internalHiddenRoutePrefix: "sites",
 	subdomains: {
 		app: "app",
-		test: "test",
 	},
 	enableDynamicSubdomainRouting: true,
 
 	beforeProxy: async (request: NextRequest) => {
-		let supabaseResponse = NextResponse.next({
-			request,
-		});
+		const { pathname } = request.nextUrl;
 
-		const supabase = createServerClient(
-			process.env.NEXT_PUBLIC_SUPABASE_URL!,
-			process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-			{
-				cookies: {
-					getAll() {
-						return request.cookies.getAll();
-					},
-					setAll(cookiesToSet) {
-						cookiesToSet.forEach(({ name, value, options }) =>
-							request.cookies.set(name, value),
-						);
+		const isPublicPath =
+			pathname === "/" ||
+			pathname.startsWith("/sign-in") ||
+			pathname.startsWith("/sign-up");
 
-						supabaseResponse = NextResponse.next({
-							request,
-						});
-
-						cookiesToSet.forEach(({ name, value, options }) =>
-							supabaseResponse.cookies.set(name, value, options),
-						);
-					},
-				},
-			},
-		);
-
-		// IMPORTANT: DO NOT run code between createServerClient and auth.getUser()
-		const {
-			data: { user },
-		} = await supabase.auth.getUser();
-
-		if (
-			!user &&
-			!request.nextUrl.pathname.startsWith("/sign-in") &&
-			!request.nextUrl.pathname.startsWith("/auth") &&
-			!request.nextUrl.pathname.startsWith("/api") &&
-			!request.nextUrl.pathname.startsWith("/r")
-		) {
-			const url = request.nextUrl.clone();
-			url.pathname = "/sign-in";
-			return NextResponse.redirect(url);
+		if (isPublicPath) {
+			return;
 		}
+	},
 
-		return supabaseResponse;
+	afterProxy: async (request, response) => {
+		return await updateSession(request, response);
 	},
 });
+
+export const config = {
+	matcher: ["/((?!_next/|favicon.ico|robots.txt|sitemap.xml|.*\\..*).*)"],
+};
 ```
 
 ### Features:
