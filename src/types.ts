@@ -4,6 +4,8 @@
  * Created by zacaw99 Copyright (c) 2026
  */
 
+import { NextRequest, NextResponse } from "next/server";
+
 export type StaticSubdomainMap = Record<string, string>;
 export type NotFoundStrategy = "response" | "rewrite";
 
@@ -95,4 +97,23 @@ export interface CreateSubdomainRouterOptions {
 	 * Default: "/404"
 	 */
 	notFoundRewritePath?: string;
+
+	/*
+	 * Before Proxy
+	 * Runs before subdomain routing logic.
+	 * Can optionally return a NextResponse to short-circuit the proxy.
+	 */
+	beforeProxy?: (
+		request: NextRequest,
+	) => void | NextResponse | Promise<void | NextResponse>;
+
+	/*
+	 * After Proxy
+	 * Runs after subdomain routing logic has produced a response.
+	 * Useful for modifying cookies, headers, or integrating with auth/session handlers.
+	 */
+	afterProxy?: (
+		request: NextRequest,
+		response: NextResponse,
+	) => NextResponse | Promise<NextResponse>;
 }

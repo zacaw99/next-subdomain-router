@@ -12,8 +12,9 @@ Subdomain-based routing for Next.js 16 using `proxy.ts`.
 
 ## 📝 Changelog
 
-### v1.0.3
-- Added `allowedDynamicSubdomains` option to whitelist specific subdomains for dynamic routing
+### v1.1.0
+
+- Added `beforeProxy` and `afterProxy` callbacks for custom middleware logic before and after subdomain routing
 
 ## ✨ Features
 
@@ -92,6 +93,7 @@ export const proxy = createSubdomainRouter({
 ```
 
 Your route structure:
+
 ```txt
 app/
   sites/
@@ -99,11 +101,11 @@ app/
       page.tsx  # Receives params.subdomain
 ```
 
-| Request             | Result                                 |
-| ------------------- | -------------------------------------- |
-| `user.example.com`  | ✅ Routes to `/sites/[subdomain]` with `params.subdomain = "user"`      |
-| `profile.example.com` | ✅ Routes to `/sites/[subdomain]` with `params.subdomain = "profile"`   |
-| `admin.example.com` | ❌ 404 (not in allowed list)           |
+| Request               | Result                                                                |
+| --------------------- | --------------------------------------------------------------------- |
+| `user.example.com`    | ✅ Routes to `/sites/[subdomain]` with `params.subdomain = "user"`    |
+| `profile.example.com` | ✅ Routes to `/sites/[subdomain]` with `params.subdomain = "profile"` |
+| `admin.example.com`   | ❌ 404 (not in allowed list)                                          |
 
 When `allowedDynamicSubdomains` is **not specified**, all subdomains (except reserved ones) are allowed dynamically. This option acts as an allowlist to control which subdomain slugs can be used.
 
@@ -246,6 +248,34 @@ notFoundRewritePath: "/404"
 
 Rewrites to a route inside your app.
 
+### `beforeProxy` (optional)
+
+Async callback executed before subdomain routing. Useful for custom authentication, header validation, or early request termination.
+
+```ts
+beforeProxy: async (request: NextRequest) => {
+	// Custom logic before routing
+	if (!request.headers.get("authorization")) {
+		return NextResponse.redirect(new URL("/unauthorized", request.url));
+	}
+	return null; // Continue with normal routing
+};
+```
+
+If this function returns a `NextResponse`, that response is sent immediately and routing is skipped.
+
+### `afterProxy` (optional)
+
+Async callback executed after subdomain routing, before the response is sent. Useful for modifying response headers, setting cookies, or logging.
+
+```ts
+afterProxy: async (response: NextResponse, request: NextRequest) => {
+	// Custom logic after routing
+	response.headers.set("x-subdomain-routed", "true");
+	return response;
+};
+```
+
 ## 🧪 Example
 
 ```ts
@@ -265,6 +295,92 @@ createSubdomainRouter({
 | ----------------- | ------------ |
 | `app.example.com` | `/sites/app` |
 | `foo.example.com` | `/sites/foo` |
+
+---
+
+## 🔐 Supabase Setup
+
+Integrate `next-subdomain-router` with Supabase for authentication across subdomains:
+
+```ts
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+import { createSubdomainRouter } from "next-subdomain-router";
+
+export const proxy = createSubdomainRouter({
+	rootDomain: "example.com",
+	internalHiddenRoutePrefix: "sites",
+	subdomains: {
+		app: "app",
+		test: "test",
+	},
+	enableDynamicSubdomainRouting: true,
+
+	beforeProxy: async (request: NextRequest) => {
+		let supabaseResponse = NextResponse.next({
+			request,
+		});
+
+		const supabase = createServerClient(
+			process.env.NEXT_PUBLIC_SUPABASE_URL!,
+			process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+			{
+				cookies: {
+					getAll() {
+						return request.cookies.getAll();
+					},
+					setAll(cookiesToSet) {
+						cookiesToSet.forEach(({ name, value, options }) =>
+							request.cookies.set(name, value),
+						);
+
+						supabaseResponse = NextResponse.next({
+							request,
+						});
+
+						cookiesToSet.forEach(({ name, value, options }) =>
+							supabaseResponse.cookies.set(name, value, options),
+						);
+					},
+				},
+			},
+		);
+
+		// IMPORTANT: DO NOT run code between createServerClient and auth.getUser()
+		const {
+			data: { user },
+		} = await supabase.auth.getUser();
+
+		if (
+			!user &&
+			!request.nextUrl.pathname.startsWith("/sign-in") &&
+			!request.nextUrl.pathname.startsWith("/auth") &&
+			!request.nextUrl.pathname.startsWith("/api") &&
+			!request.nextUrl.pathname.startsWith("/r")
+		) {
+			const url = request.nextUrl.clone();
+			url.pathname = "/sign-in";
+			return NextResponse.redirect(url);
+		}
+
+		return supabaseResponse;
+	},
+});
+```
+
+### Features:
+
+- ✅ Supabase session validation before routing
+- ✅ Automatic redirect to `/sign-in` for unauthenticated requests
+- ✅ Cookie management across subdomains
+- ✅ Protected API routes and auth endpoints
+
+### Environment Variables:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-key
+```
 
 ---
 

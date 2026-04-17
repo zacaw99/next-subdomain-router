@@ -34,6 +34,8 @@ export function createSubdomainRouter(options: CreateSubdomainRouterOptions) {
 		rootSubdomain,
 		notFoundStrategy = "response",
 		notFoundRewritePath = "/404",
+		beforeProxy,
+		afterProxy,
 	} = options;
 
 	const internalHiddenRoutePrefix = normalisePrefix(
@@ -48,11 +50,31 @@ export function createSubdomainRouter(options: CreateSubdomainRouterOptions) {
 		]),
 	);
 
-	return function proxy(request: NextRequest) {
+	return async function proxy(request: NextRequest) {
 		const hostHeader = request.headers.get("host");
 
 		if (!hostHeader) {
-			return NextResponse.next();
+			let response = NextResponse.next();
+
+			if (afterProxy) {
+				response = await afterProxy(request, response);
+			}
+
+			return response;
+		}
+
+		if (beforeProxy) {
+			const beforeResult = await beforeProxy(request);
+
+			if (beforeResult instanceof NextResponse) {
+				let response = beforeResult;
+
+				if (afterProxy) {
+					response = await afterProxy(request, response);
+				}
+
+				return response;
+			}
 		}
 
 		const host = hostHeader.toLowerCase();
@@ -122,6 +144,16 @@ export function createSubdomainRouter(options: CreateSubdomainRouterOptions) {
 			return NextResponse.rewrite(new URL(internalRoute, request.url));
 		}
 
-		return handleNotFound(request, notFoundStrategy, notFoundRewritePath);
+		let response = handleNotFound(
+			request,
+			notFoundStrategy,
+			notFoundRewritePath,
+		);
+
+		if (afterProxy) {
+			response = await afterProxy(request, response);
+		}
+
+		return response;
 	};
 }
